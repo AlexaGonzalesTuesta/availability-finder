@@ -511,7 +511,11 @@ function formatDay(dateStr,slots,events,dayStart,dayEnd){
   const slotsForLines=events.length===0?null:slots;
   const slotLines=getSlotLines(slotsForLines,dayStart,dayEnd,dateStr);
   const fingerprint=slotLines.join('\n');
-  const tzLabel = selectedTz ? ' ('+selectedTz.replace(/_/g,' ')+')' : '';
+  let tzLabel = '';
+  if (selectedTz) {
+    const abbr = getTzAbbr(selectedTz);
+    tzLabel = abbr ? ' ('+abbr+')' : ' ('+selectedTz.replace(/_/g,' ')+')';
+  }
   const header=events.length===0?`${name}${tzLabel}:`:`Available on ${name}${tzLabel}:`;
   const text=header+'\n'+slotLines.join('\n');
   const busy=events.length?'Busy with:\n'+events.map(e=>`  - ${e.title} (${minToTime(e.start)} \u2013 ${minToTime(e.end)})`).join('\n'):'';
@@ -618,9 +622,70 @@ const COUNTRY_TZ = {
 
 let selectedTz = '';
 
+function getTzAbbr(tz){
+  try {
+    const parts = new Intl.DateTimeFormat('en-US',{timeZone:tz,timeZoneName:'short'}).formatToParts(new Date());
+    const tzPart = parts.find(p=>p.type==='timeZoneName');
+    return tzPart ? tzPart.value : '';
+  } catch(e){ return ''; }
+}
+
+function getTzAbbrLong(tz){
+  try {
+    const parts = new Intl.DateTimeFormat('en-US',{timeZone:tz,timeZoneName:'long'}).formatToParts(new Date());
+    const tzPart = parts.find(p=>p.type==='timeZoneName');
+    return tzPart ? tzPart.value : '';
+  } catch(e){ return ''; }
+}
+
+// Common abbreviations people actually search for
+const COMMON_TZ = [
+  {label:'EST / EDT — Eastern Time', value:'America/New_York'},
+  {label:'CST / CDT — Central Time', value:'America/Chicago'},
+  {label:'MST / MDT — Mountain Time', value:'America/Denver'},
+  {label:'MST — Arizona (no DST)', value:'America/Phoenix'},
+  {label:'PST / PDT — Pacific Time', value:'America/Los_Angeles'},
+  {label:'AKST / AKDT — Alaska Time', value:'America/Anchorage'},
+  {label:'HST — Hawaii Time', value:'Pacific/Honolulu'},
+  {label:'GMT / BST — United Kingdom', value:'Europe/London'},
+  {label:'CET / CEST — Central European', value:'Europe/Berlin'},
+  {label:'EET / EEST — Eastern European', value:'Europe/Helsinki'},
+  {label:'IST — India Standard Time', value:'Asia/Kolkata'},
+  {label:'CST — China Standard Time', value:'Asia/Shanghai'},
+  {label:'JST — Japan Standard Time', value:'Asia/Tokyo'},
+  {label:'KST — Korea Standard Time', value:'Asia/Seoul'},
+  {label:'AEST / AEDT — Australian Eastern', value:'Australia/Sydney'},
+  {label:'ACST / ACDT — Australian Central', value:'Australia/Adelaide'},
+  {label:'AWST — Australian Western', value:'Australia/Perth'},
+  {label:'NZST / NZDT — New Zealand', value:'Pacific/Auckland'},
+  {label:'SGT — Singapore Time', value:'Asia/Singapore'},
+  {label:'HKT — Hong Kong Time', value:'Asia/Hong_Kong'},
+  {label:'GST — Gulf Standard Time', value:'Asia/Dubai'},
+  {label:'AST — Atlantic Standard Time', value:'America/Halifax'},
+  {label:'BRT — Brasilia Time', value:'America/Sao_Paulo'},
+  {label:'WET / WEST — Western European', value:'Europe/Lisbon'},
+  {label:'TRT — Turkey Time', value:'Europe/Istanbul'},
+  {label:'MSK — Moscow Time', value:'Europe/Moscow'},
+  {label:'PKT — Pakistan Standard Time', value:'Asia/Karachi'},
+  {label:'ICT — Indochina Time', value:'Asia/Bangkok'},
+  {label:'PHT — Philippine Time', value:'Asia/Manila'},
+  {label:'WIB — Western Indonesia', value:'Asia/Jakarta'},
+];
+
 function populateTzDropdowns(){
   const tzSelect = el('tz-select');
   const countrySelect = el('country-select');
+
+  // Add common abbreviations group first
+  const commonGroup = document.createElement('optgroup');
+  commonGroup.label = 'Common Time Zones';
+  COMMON_TZ.forEach(tz => {
+    const opt = document.createElement('option');
+    opt.value = tz.value;
+    opt.textContent = tz.label;
+    commonGroup.appendChild(opt);
+  });
+  tzSelect.appendChild(commonGroup);
 
   // Get all IANA timezones supported by the browser
   const allTz = Intl.supportedValuesOf ? Intl.supportedValuesOf('timeZone') : [];
@@ -641,7 +706,8 @@ function populateTzDropdowns(){
     [...fallback].sort().forEach(tz => {
       const opt = document.createElement('option');
       opt.value = tz;
-      opt.textContent = tz.replace(/_/g, ' ');
+      const abbr = getTzAbbr(tz);
+      opt.textContent = tz.replace(/_/g, ' ') + (abbr ? ' ('+abbr+')' : '');
       tzSelect.appendChild(opt);
     });
   } else {
@@ -652,8 +718,9 @@ function populateTzDropdowns(){
       regions[region].forEach(tz => {
         const opt = document.createElement('option');
         opt.value = tz;
-        const label = tz.replace(region + '/', '').replace(/_/g, ' ');
-        opt.textContent = label;
+        const city = tz.replace(region + '/', '').replace(/_/g, ' ');
+        const abbr = getTzAbbr(tz);
+        opt.textContent = city + (abbr ? ' ('+abbr+')' : '');
         group.appendChild(opt);
       });
       tzSelect.appendChild(group);
@@ -710,8 +777,10 @@ function updateTzInfo(){
   const hrs = Math.floor(absDiff / 60);
   const mins = absDiff % 60;
   const diffStr = mins ? `${sign}${hrs}h ${mins}m` : `${sign}${hrs}h`;
+  const abbr = getTzAbbr(selectedTz);
   const targetLabel = selectedTz.replace(/_/g, ' ');
-  info.innerHTML = `Converting to <strong>${targetLabel}</strong> (${diffStr} from your local time)`;
+  const abbrStr = abbr ? ` (${abbr})` : '';
+  info.innerHTML = `Converting to <strong>${targetLabel}${abbrStr}</strong> — ${diffStr} from your local time`;
   info.classList.remove('hidden');
 }
 
