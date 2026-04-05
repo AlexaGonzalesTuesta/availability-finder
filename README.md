@@ -2,8 +2,6 @@
 
 A lightweight tool that reads your Outlook calendar (.ics export) and generates a clean list of your available time slots. Built as a Progressive Web App — works in the browser and can be installed on desktop or mobile.
 
-![Availability Finder Screenshot](screenshot.png)
-
 ## Features
 
 - **Import .ics files** from Outlook, Google Calendar, or Apple Calendar via drag-and-drop
