@@ -34,7 +34,7 @@ A lightweight tool that reads your Outlook calendar (.ics export) and generates 
 ### Option 3: Run locally
 
 ```bash
-git clone https://github.com/your-username/availability-finder.git
+git clone https://github.com/AlexaGonzalesTuesta/availability-finder.git
 cd availability-finder
 # Any static file server works:
 python3 -m http.server 8000
@@ -64,13 +64,13 @@ Bookmark the ICS download link. Click it → drag the new file into the app. Don
    git add .
    git commit -m "Initial commit"
    git branch -M main
-   git remote add origin https://github.com/your-username/availability-finder.git
+   git remote add origin https://github.com/AlexaGonzalesTuesta/availability-finder.git
    git push -u origin main
    ```
 3. Go to **Settings → Pages** in your repo
 4. Under **Source**, select **Deploy from a branch** → **main** → **/ (root)**
 5. Click **Save**
-6. Your app will be live at `https://your-username.github.io/availability-finder` within a minute
+6. Your app will be live at `https://AlexaGonzalesTuesta.github.io/availability-finder` within a minute
 
 ## How the Copy Grouping Works
 
