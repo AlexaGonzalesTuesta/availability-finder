@@ -1,6 +1,12 @@
 # Availability Finder
 
-A lightweight tool that reads your Outlook calendar (.ics export) and generates a clean list of your available time slots. Built as a Progressive Web App — works in the browser and can be installed on desktop or mobile.
+A lightweight tool that reads your calendar (.ics export) and generates a clean list of your available time slots. Built as a Progressive Web App — works in the browser and can be installed on desktop or mobile.
+
+## Use It Now
+
+**[alexagonzalestuesta.github.io/availability-finder](https://alexagonzalestuesta.github.io/availability-finder)**
+
+No account, no install, no setup. Just open the link and import your calendar.
 
 ## Features
 
@@ -13,88 +19,39 @@ A lightweight tool that reads your Outlook calendar (.ics export) and generates 
 - **One-click copy** — copies only your free times, never your event details
 - **Works offline** — full PWA with service worker caching
 - **Installable** — add to home screen on mobile, or install as a desktop app from your browser
-- **Settings persist** between sessions via localStorage
+- **Settings persist** between sessions automatically
 
-## Quick Start
+## How to Use
 
-### Option 1: Use online (GitHub Pages)
+### Step 1: Export your calendar
 
-1. Visit **[AlexaGonzalesTuesta.github.io/availability-finder](https://AlexaGonzalesTuesta.github.io/availability-finder)**
-2. Export your calendar as an .ics file ([how-to guide below](#exporting-from-outlook))
-3. Drag the .ics file into the app
-4. Pick a date and click **Find Free Times**
-
-### Option 2: Install as a desktop/mobile app
-
-1. Visit the GitHub Pages link above
-2. In Chrome: click the install icon (⊕) in the address bar
-3. In Safari (iOS): tap Share → Add to Home Screen
-4. The app now runs standalone, even offline
-
-### Option 3: Run locally
-
-```bash
-git clone https://github.com/AlexaGonzalesTuesta/availability-finder.git
-cd availability-finder
-# Any static file server works:
-python3 -m http.server 8000
-# Then open http://localhost:8000
-```
-
-## Exporting from Outlook
-
-**First time (~30 seconds):**
-
-1. Go to [Outlook Web → Shared Calendars Settings](https://outlook.live.com/calendar/0/options/calendar/SharedCalendars)
+1. Open [Outlook Web → Shared Calendars Settings](https://outlook.live.com/calendar/0/options/calendar/SharedCalendars)
 2. Under **"Publish a calendar"**, select your calendar → set to **"Can view all details"**
 3. Click **Publish**
 4. Right-click the **ICS** link → **Save link as...** to download the .ics file
-5. Drag it into the app
 
-**Every time after (~5 seconds):**
+> **Tip:** Bookmark the ICS download link. Next time you just click it to download a fresh copy — takes 5 seconds.
 
-Bookmark the ICS download link. Click it → drag the new file into the app. Done.
+### Step 2: Import into the app
 
-## Deploying to GitHub Pages
+1. Open the [Availability Finder](https://alexagonzalestuesta.github.io/availability-finder)
+2. Drag your .ics file into the drop zone (or click to browse)
+3. Set your working hours (e.g. 8:00am – 9:00pm)
+4. Pick a date or date range and click **Find Free Times**
+5. Click **Copy** to grab your availability and paste it into a message
 
-1. Create a new repository on GitHub (e.g. `availability-finder`)
-2. Push this project to it:
-   ```bash
-   git init
-   git add .
-   git commit -m "Initial commit"
-   git branch -M main
-   git remote add origin https://github.com/AlexaGonzalesTuesta/availability-finder.git
-   git push -u origin main
-   ```
-3. Go to **Settings → Pages** in your repo
-4. Under **Source**, select **Deploy from a branch** → **main** → **/ (root)**
-5. Click **Save**
-6. Your app will be live at `https://AlexaGonzalesTuesta.github.io/availability-finder` within a minute
+### Install as an app (optional)
+
+- **Chrome (desktop):** Click the install icon in the address bar to pin it as a standalone app
+- **Safari (iOS):** Tap Share → Add to Home Screen
+- **Android:** Tap the "Add to Home Screen" prompt
 
 ## How the Copy Grouping Works
 
-When you query a date range, the copy button intelligently groups days with identical availability:
+When you query a date range, the copy button intelligently groups days with identical availability.
 
-**Instead of:**
-```
-Available on Monday, April 6:
-- Available anytime before 10:20am
-- 1:25pm – 4:20pm
-- Available anytime after 5:30pm
+Instead of listing Monday, Wednesday, and Friday separately with the same times, you get:
 
-Available on Wednesday, April 8:
-- Available anytime before 10:20am
-- 1:25pm – 4:20pm
-- Available anytime after 5:30pm
-
-Available on Friday, April 10:
-- Available anytime before 10:20am
-- 1:25pm – 4:20pm
-- Available anytime after 5:30pm
-```
-
-**You get:**
 ```
 Monday, April 6, Wednesday, April 8, and Friday, April 10:
 - Available anytime before 10:20am
@@ -102,18 +59,24 @@ Monday, April 6, Wednesday, April 8, and Friday, April 10:
 - Available anytime after 5:30pm
 ```
 
-## Project Structure
+This makes it easy to paste into a message without overwhelming the recipient.
 
-```
-availability-finder/
-├── index.html      ← The entire app (single file, no build step)
-├── manifest.json   ← PWA manifest (app name, icons, theme)
-├── sw.js           ← Service worker (offline caching)
-├── icons/
-│   ├── icon.svg    ← Vector icon
-│   ├── icon-192.png
-│   └── icon-512.png
-└── README.md
+## Deploying Your Own Copy
+
+Want to host your own version? Fork this repo, then:
+
+1. Go to **Settings → Pages** in your forked repo
+2. Under Source, select **Deploy from a branch → main → / (root)**
+3. Click **Save**
+4. Your copy will be live at `your-username.github.io/availability-finder` within a minute
+
+Or run it locally:
+
+```bash
+git clone https://github.com/AlexaGonzalesTuesta/availability-finder.git
+cd availability-finder
+python3 -m http.server 8000
+# Open http://localhost:8000
 ```
 
 ## Tech Stack
