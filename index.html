@@ -252,10 +252,11 @@
 
   <div class="card" id="import-card">
     <h3>Import Calendar</h3>
-    <button class="howto-toggle" id="howto-btn" onclick="toggleHowTo()">
-      <span class="arrow">&#9654;</span> How to export from Outlook (takes ~30 seconds)
+
+    <button class="howto-toggle" onclick="toggleSection('howto-outlook')">
+      <span class="arrow" id="arrow-howto-outlook">&#9654;</span> How to export from Outlook
     </button>
-    <div class="howto-content" id="howto-content">
+    <div class="howto-content" id="howto-outlook">
       <ol>
         <li>Click the button below to open <strong>Outlook Web &rarr; Shared Calendars settings</strong></li>
         <li>Under <strong>"Publish a calendar"</strong>, pick your calendar and set to <strong>"Can view all details"</strong></li>
@@ -264,17 +265,57 @@
         <li>Drag it into the box below, or click to browse</li>
       </ol>
       <p style="margin-top:10px;"><strong>Tip:</strong> Bookmark the ICS link. Next time, just click it to download a fresh copy, then drag it in. Takes 5 seconds.</p>
+      <div style="margin-top:12px;">
+        <a class="btn btn-sm" href="https://outlook.live.com/calendar/0/options/calendar/SharedCalendars" target="_blank">Open Outlook Export Page</a>
+      </div>
     </div>
+
+    <button class="howto-toggle" onclick="toggleSection('howto-google')">
+      <span class="arrow" id="arrow-howto-google">&#9654;</span> How to export from Google Calendar
+    </button>
+    <div class="howto-content" id="howto-google">
+      <ol>
+        <li>Open <a href="https://calendar.google.com/calendar/r/settings/export" target="_blank" style="color:var(--accent)"><strong>Google Calendar &rarr; Settings &rarr; Import &amp; Export</strong></a></li>
+        <li>Under <strong>"Export"</strong>, click the <strong>Export</strong> button</li>
+        <li>A .zip file will download — unzip it to find your <strong>.ics file(s)</strong> inside</li>
+        <li>Drag the .ics file into the box below, or click to browse</li>
+      </ol>
+      <p style="margin-top:10px;"><strong>Note:</strong> Google exports all your calendars at once. Each calendar is a separate .ics file inside the zip — pick the one you want.</p>
+      <div style="margin-top:12px;">
+        <a class="btn btn-sm" href="https://calendar.google.com/calendar/r/settings/export" target="_blank">Open Google Calendar Export</a>
+      </div>
+    </div>
+
+    <button class="howto-toggle" onclick="toggleSection('howto-apple')">
+      <span class="arrow" id="arrow-howto-apple">&#9654;</span> How to export from Apple Calendar
+    </button>
+    <div class="howto-content" id="howto-apple">
+      <strong>On Mac (Calendar app):</strong>
+      <ol>
+        <li>Open the <strong>Calendar</strong> app</li>
+        <li>In the left sidebar, right-click the calendar you want to export</li>
+        <li>Select <strong>"Export..."</strong></li>
+        <li>Save the .ics file to your computer</li>
+        <li>Drag it into the box below, or click to browse</li>
+      </ol>
+      <strong style="display:block;margin-top:12px;">On iCloud (web):</strong>
+      <ol>
+        <li>Go to <a href="https://www.icloud.com/calendar" target="_blank" style="color:var(--accent)"><strong>icloud.com/calendar</strong></a></li>
+        <li>Click the <strong>share icon</strong> next to the calendar name in the sidebar</li>
+        <li>Check <strong>"Public Calendar"</strong> and copy the link</li>
+        <li>Paste the link in your browser, changing <strong>webcal://</strong> to <strong>https://</strong></li>
+        <li>The .ics file will download — drag it into the box below</li>
+      </ol>
+      <div style="margin-top:12px;">
+        <a class="btn btn-sm" href="https://www.icloud.com/calendar" target="_blank">Open iCloud Calendar</a>
+      </div>
+    </div>
+
     <div class="import-zone" id="drop-zone">
       <input type="file" accept=".ics,.ICS" id="file-input" onchange="handleFile(this.files[0])" />
       <div class="iz-icon">&#128194;</div>
       <div class="iz-main">Drop .ics file here or click to browse</div>
       <div class="iz-sub">Works with Outlook, Google Calendar, Apple Calendar</div>
-    </div>
-    <div class="import-actions">
-      <a class="btn btn-sm" href="https://outlook.live.com/calendar/0/options/calendar/SharedCalendars" target="_blank">
-        Open Outlook Export Page
-      </a>
     </div>
   </div>
 
@@ -461,7 +502,13 @@ function setMode(mode,btn){
   el('end-date-wrap').classList.toggle('hidden',mode!=='range');
   el('date-label-start').textContent=mode==='range'?'Start Date':'Date';
 }
-function toggleHowTo(){el('howto-btn').classList.toggle('open');el('howto-content').classList.toggle('open');}
+function toggleSection(id){
+  const content = el(id);
+  const arrow = el('arrow-'+id);
+  const isOpen = content.classList.contains('open');
+  content.classList.toggle('open');
+  if(arrow){ arrow.style.transform = isOpen ? '' : 'rotate(90deg)'; }
+}
 
 function timeToMin(t){const[h,m]=t.split(':').map(Number);return h*60+m;}
 function minToTime(m){const h=Math.floor(m/60),min=m%60,ampm=h>=12?'pm':'am',h12=h===0?12:h>12?h-12:h;return`${h12}:${min.toString().padStart(2,'0')}${ampm}`;}
