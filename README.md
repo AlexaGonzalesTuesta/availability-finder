@@ -19,6 +19,7 @@ https://github.com/user-attachments/assets/1d9f3115-c702-4dcb-87b6-0828a8e4f0c2
 - **Single day or date range** queries
 - **Buffer time** between events (5–30 min)
 - **Minimum slot duration** filter (15 min, 30 min, 1 hour)
+- **Timezone conversion** — display your availability in any timezone, searchable by abbreviation (EST, PST, GMT, IST, etc.) or by country
 - **Smart grouping** — when you copy a week's availability, days with identical schedules are grouped together (e.g. "Monday, Wednesday, and Friday:")
 - **One-click copy** — copies only your free times, never your event details
 - **Works offline** — full PWA with service worker caching
