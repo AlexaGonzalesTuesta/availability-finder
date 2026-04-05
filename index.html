@@ -1,0 +1,554 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="theme-color" content="#0078d4">
+<meta name="description" content="Import your Outlook calendar and instantly find your free time slots. Works offline as a PWA.">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="Availability">
+<link rel="manifest" href="manifest.json">
+<link rel="icon" type="image/svg+xml" href="icons/icon.svg">
+<link rel="apple-touch-icon" href="icons/icon-192.png">
+<title>Availability Finder</title>
+<style>
+  :root {
+    --bg: #faf9f8;
+    --surface: #ffffff;
+    --border: #e1dfdd;
+    --border-strong: #c8c6c4;
+    --text: #242424;
+    --text-muted: #616161;
+    --accent: #0078d4;
+    --accent-hover: #106ebe;
+    --accent-light: #deecf9;
+    --accent-border: #a9d3f2;
+    --green: #107c10;
+    --green-light: #dff6dd;
+    --green-border: #a7e3a5;
+    --orange: #c67f07;
+    --orange-light: #fff4ce;
+    --orange-border: #f5d58e;
+    --red: #d13438;
+    --surface-hover: #f3f2f1;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: 'Segoe UI', -apple-system, BlinkMacSystemFont, sans-serif;
+    background: var(--bg); color: var(--text);
+    min-height: 100vh; padding: 24px;
+  }
+  .app { max-width: 640px; margin: 0 auto; }
+
+  /* Header */
+  .header {
+    display: flex; align-items: center; gap: 14px;
+    margin-bottom: 28px; padding-bottom: 20px;
+    border-bottom: 1px solid var(--border);
+  }
+  .header-icon {
+    width: 40px; height: 40px;
+    background: var(--accent); display: flex;
+    align-items: center; justify-content: center; flex-shrink: 0;
+  }
+  .header-icon svg { width: 22px; height: 22px; fill: #fff; }
+  .header h1 { font-size: 28px; font-weight: 600; color: var(--text); }
+  .header p { font-size: 13px; color: var(--text-muted); margin-top: 1px; }
+
+  /* Cards */
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    padding: 20px; margin-bottom: 16px;
+  }
+  .card h3 {
+    font-size: 17px; font-weight: 600; margin-bottom: 14px;
+    color: var(--text);
+  }
+
+  /* Status bar */
+  .status-bar {
+    display: flex; align-items: center; gap: 8px;
+    padding: 10px 14px; font-size: 13px;
+    font-weight: 500; margin-bottom: 16px;
+  }
+  .status-bar.loaded {
+    background: var(--green-light); border: 1px solid var(--green-border); color: var(--green);
+  }
+  .status-bar.empty {
+    background: var(--orange-light); border: 1px solid var(--orange-border); color: var(--orange);
+  }
+  .status-dot { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; }
+  .loaded .status-dot { background: var(--green); }
+  .empty .status-dot { background: var(--orange); }
+  .status-bar .status-clear {
+    margin-left: auto; background: none; border: none;
+    color: var(--text-muted); font-size: 12px; cursor: pointer;
+    font-family: inherit; text-decoration: underline;
+  }
+  .status-bar .status-clear:hover { color: var(--text); }
+
+  /* Import zone */
+  .import-zone {
+    border: 2px dashed var(--border-strong);
+    padding: 28px 20px; text-align: center;
+    cursor: pointer; transition: all 0.15s; position: relative;
+  }
+  .import-zone:hover, .import-zone.dragover {
+    border-color: var(--accent); background: var(--accent-light);
+  }
+  .import-zone input[type="file"] {
+    position: absolute; inset: 0; opacity: 0; cursor: pointer;
+  }
+  .import-zone .iz-icon { font-size: 28px; margin-bottom: 8px; }
+  .import-zone .iz-main { font-size: 14px; font-weight: 600; margin-bottom: 4px; color: var(--text); }
+  .import-zone .iz-sub { font-size: 12px; color: var(--text-muted); }
+
+  .import-actions {
+    display: flex; gap: 8px; margin-top: 14px;
+    flex-wrap: wrap; justify-content: center;
+  }
+
+  /* Buttons */
+  .btn {
+    display: inline-flex; align-items: center; gap: 8px;
+    padding: 8px 16px; border: 1px solid var(--border-strong);
+    background: var(--surface); color: var(--text);
+    font-family: inherit; font-size: 13px; font-weight: 600;
+    cursor: pointer; transition: all 0.1s; text-decoration: none;
+  }
+  .btn:hover { background: var(--surface-hover); border-color: var(--accent); }
+  .btn-primary {
+    background: var(--accent); color: #fff; border-color: var(--accent);
+  }
+  .btn-primary:hover { background: var(--accent-hover); }
+  .btn-sm { padding: 6px 12px; font-size: 12px; }
+
+  /* Inputs */
+  input[type="time"], input[type="date"], select {
+    background: var(--surface); border: 1px solid var(--border-strong);
+    padding: 7px 10px; color: var(--text);
+    font-family: 'Segoe UI', sans-serif; font-size: 13px;
+    outline: none; transition: border-color 0.1s;
+  }
+  input[type="time"]:focus, input[type="date"]:focus, select:focus {
+    border-color: var(--accent);
+  }
+
+  .time-row { display: flex; align-items: center; gap: 12px; margin-bottom: 10px; }
+  .time-row:last-child { margin-bottom: 0; }
+  .time-row label { font-size: 13px; color: var(--text-muted); width: 110px; flex-shrink: 0; }
+
+  .date-inputs { display: flex; gap: 12px; margin-bottom: 16px; flex-wrap: wrap; }
+  .date-inputs > div { flex: 1; min-width: 130px; }
+  .date-inputs label { display: block; font-size: 12px; color: var(--text-muted); margin-bottom: 5px; }
+  .date-inputs input, .date-inputs select { width: 100%; }
+
+  /* How-to */
+  .howto-toggle {
+    display: flex; align-items: center; gap: 6px;
+    background: none; border: none; color: var(--accent);
+    font-family: inherit; font-size: 13px; cursor: pointer;
+    padding: 0; margin-bottom: 14px;
+  }
+  .howto-toggle:hover { text-decoration: underline; }
+  .howto-toggle .arrow { transition: transform 0.2s; font-size: 10px; }
+  .howto-toggle.open .arrow { transform: rotate(90deg); }
+  .howto-content {
+    display: none; padding: 14px 16px; background: var(--bg);
+    border: 1px solid var(--border); margin-bottom: 14px;
+    font-size: 13px; color: var(--text-muted); line-height: 1.7;
+  }
+  .howto-content.open { display: block; }
+  .howto-content ol { padding-left: 18px; }
+  .howto-content li { margin-bottom: 4px; }
+  .howto-content strong { color: var(--text); font-weight: 600; }
+  .howto-content a { color: var(--accent); }
+
+  /* Range toggle */
+  .range-toggle {
+    display: flex; gap: 0; margin-bottom: 12px;
+    border: 1px solid var(--border-strong);
+  }
+  .range-toggle button {
+    flex: 1; padding: 7px; border: none;
+    background: var(--surface); color: var(--text-muted);
+    font-family: inherit; font-size: 12px; font-weight: 600;
+    cursor: pointer; transition: all 0.1s;
+  }
+  .range-toggle button + button { border-left: 1px solid var(--border-strong); }
+  .range-toggle button.active {
+    background: var(--accent-light); color: var(--accent);
+  }
+
+  /* Results */
+  .results {
+    background: var(--surface); border: 1px solid var(--border); overflow: hidden;
+  }
+  .results-header {
+    padding: 14px 20px; border-bottom: 1px solid var(--border);
+    display: flex; align-items: center; justify-content: space-between;
+  }
+  .results-header h3 {
+    font-size: 17px; font-weight: 600; margin-bottom: 0;
+  }
+  .copy-btn {
+    background: transparent; border: 1px solid var(--border-strong);
+    color: var(--text-muted); font-family: inherit; font-size: 12px;
+    padding: 5px 12px; cursor: pointer; transition: all 0.1s;
+  }
+  .copy-btn:hover { border-color: var(--accent); color: var(--accent); }
+  .copy-btn.copied { border-color: var(--green); color: var(--green); }
+
+  .results-body { padding: 20px; }
+  .results-body pre {
+    font-family: 'Segoe UI', sans-serif;
+    font-size: 13px; line-height: 1.9;
+    white-space: pre-wrap; color: var(--text);
+  }
+  .avail-line { color: var(--green); font-weight: 600; }
+  .busy-line { color: var(--text-muted); font-size: 12px; }
+
+  .hidden { display: none !important; }
+</style>
+</head>
+<body>
+<div class="app">
+  <div class="header">
+    <div class="header-icon">
+      <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M19 4h-1V2h-2v2H8V2H6v2H5a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2V6a2 2 0 00-2-2zm0 16H5V10h14v10zm0-12H5V6h14v2z"/></svg>
+    </div>
+    <div>
+      <h1>Availability Finder</h1>
+      <p>Import your calendar .ics file to get your free time slots</p>
+    </div>
+  </div>
+
+  <div id="status-bar" class="status-bar empty">
+    <span class="status-dot"></span>
+    <span id="status-text">No calendar loaded</span>
+    <button class="status-clear hidden" id="clear-btn" onclick="clearCalendar()">Clear</button>
+  </div>
+
+  <div class="card" id="import-card">
+    <h3>Import Calendar</h3>
+    <button class="howto-toggle" id="howto-btn" onclick="toggleHowTo()">
+      <span class="arrow">&#9654;</span> How to export from Outlook (takes ~30 seconds)
+    </button>
+    <div class="howto-content" id="howto-content">
+      <ol>
+        <li>Click the button below to open <strong>Outlook Web &rarr; Shared Calendars settings</strong></li>
+        <li>Under <strong>"Publish a calendar"</strong>, pick your calendar and set to <strong>"Can view all details"</strong></li>
+        <li>Click <strong>Publish</strong></li>
+        <li>Right-click the <strong>ICS</strong> link and select <strong>Save link as...</strong> to download the .ics file</li>
+        <li>Drag it into the box below, or click to browse</li>
+      </ol>
+      <p style="margin-top:10px;"><strong>Tip:</strong> Bookmark the ICS link. Next time, just click it to download a fresh copy, then drag it in. Takes 5 seconds.</p>
+    </div>
+    <div class="import-zone" id="drop-zone">
+      <input type="file" accept=".ics,.ICS" id="file-input" onchange="handleFile(this.files[0])" />
+      <div class="iz-icon">&#128194;</div>
+      <div class="iz-main">Drop .ics file here or click to browse</div>
+      <div class="iz-sub">Works with Outlook, Google Calendar, Apple Calendar</div>
+    </div>
+    <div class="import-actions">
+      <a class="btn btn-sm" href="https://outlook.live.com/calendar/0/options/calendar/SharedCalendars" target="_blank">
+        Open Outlook Export Page
+      </a>
+    </div>
+  </div>
+
+  <div class="card">
+    <h3>Working Hours</h3>
+    <div class="time-row">
+      <label>Available after</label>
+      <input type="time" id="start-bound" value="08:00" onchange="saveSettings()" />
+    </div>
+    <div class="time-row">
+      <label>Available until</label>
+      <input type="time" id="end-bound" value="21:00" onchange="saveSettings()" />
+    </div>
+  </div>
+
+  <div class="card">
+    <h3>Find Availability</h3>
+    <div class="range-toggle">
+      <button class="active" onclick="setMode('single',this)">Single Day</button>
+      <button onclick="setMode('range',this)">Date Range</button>
+    </div>
+    <div class="date-inputs">
+      <div>
+        <label id="date-label-start">Date</label>
+        <input type="date" id="query-date" />
+      </div>
+      <div id="end-date-wrap" class="hidden">
+        <label>End Date</label>
+        <input type="date" id="query-date-end" />
+      </div>
+      <div>
+        <label>Buffer time</label>
+        <select id="buffer-minutes" onchange="saveSettings()">
+          <option value="0">None</option>
+          <option value="5">5 min</option>
+          <option value="10" selected>10 min</option>
+          <option value="15">15 min</option>
+          <option value="30">30 min</option>
+        </select>
+      </div>
+      <div>
+        <label>Min slot</label>
+        <select id="min-slot" onchange="saveSettings()">
+          <option value="15">15 min</option>
+          <option value="30" selected>30 min</option>
+          <option value="60">1 hour</option>
+        </select>
+      </div>
+    </div>
+    <button class="btn btn-primary" onclick="findAvailability()" style="width:100%;justify-content:center;">
+      Find Free Times
+    </button>
+  </div>
+
+  <div class="results" id="results-card" style="display:none;">
+    <div class="results-header">
+      <h3>Available Times</h3>
+      <button class="copy-btn" onclick="copyResults()">Copy</button>
+    </div>
+    <div class="results-body" id="results-body"></div>
+  </div>
+</div>
+
+<script>
+let calEvents = [];
+let queryMode = 'single';
+
+function saveSettings() {
+  const s = { startBound:el('start-bound').value, endBound:el('end-bound').value, buffer:el('buffer-minutes').value, minSlot:el('min-slot').value };
+  try { localStorage.setItem('avail_settings', JSON.stringify(s)); } catch(e) {}
+}
+function loadSettings() {
+  try {
+    const s = JSON.parse(localStorage.getItem('avail_settings'));
+    if (s) { el('start-bound').value=s.startBound||'08:00'; el('end-bound').value=s.endBound||'21:00'; el('buffer-minutes').value=s.buffer||'10'; el('min-slot').value=s.minSlot||'30'; }
+  } catch(e) {}
+}
+function saveCalendar() {
+  try { localStorage.setItem('avail_events',JSON.stringify(calEvents)); localStorage.setItem('avail_import_time',new Date().toISOString()); } catch(e) {}
+}
+function loadCalendar() {
+  try { const d=localStorage.getItem('avail_events'); if(d){calEvents=JSON.parse(d);updateStatus(true,localStorage.getItem('avail_import_time'));} } catch(e) {}
+}
+function clearCalendar() {
+  calEvents=[]; localStorage.removeItem('avail_events'); localStorage.removeItem('avail_import_time');
+  updateStatus(false); el('results-card').style.display='none';
+}
+function updateStatus(loaded,importTime) {
+  const bar=el('status-bar'),text=el('status-text'),clr=el('clear-btn');
+  if(loaded&&calEvents.length){
+    bar.className='status-bar loaded';
+    const dates=[...new Set(calEvents.map(e=>e.date))].sort();
+    let ts='';
+    if(importTime){const d=new Date(importTime);ts=` — imported ${d.toLocaleDateString('en-US',{month:'short',day:'numeric'})} at ${d.toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit'})}`;}
+    text.textContent=`${calEvents.length} events loaded (${dates[0]} to ${dates[dates.length-1]})${ts}`;
+    clr.classList.remove('hidden');
+  } else { bar.className='status-bar empty'; text.textContent='No calendar loaded'; clr.classList.add('hidden'); }
+}
+
+function parseICS(text) {
+  const events=[];
+  const lines=text.replace(/\r\n[ \t]/g,'').replace(/\r/g,'\n').split('\n');
+  let inEv=false,ev={};
+  for(const line of lines){
+    if(line==='BEGIN:VEVENT'){inEv=true;ev={};continue;}
+    if(line==='END:VEVENT'){inEv=false;if(ev.dtstart&&ev.dtend&&ev.summary)events.push(...expandEvent(ev));continue;}
+    if(!inEv)continue;
+    const ci=line.indexOf(':'); if(ci===-1)continue;
+    const key=line.substring(0,ci).split(';')[0], val=line.substring(ci+1);
+    if(key==='DTSTART')ev.dtstart=val; else if(key==='DTEND')ev.dtend=val;
+    else if(key==='SUMMARY')ev.summary=val; else if(key==='RRULE')ev.rrule=val;
+    else if(key==='EXDATE'){if(!ev.exdates)ev.exdates=[];ev.exdates.push(val);}
+  }
+  return events;
+}
+function parseDT(s){
+  s=s.replace('Z','');
+  if(s.length===8)return{date:`${s.substr(0,4)}-${s.substr(4,2)}-${s.substr(6,2)}`,time:null,allDay:true};
+  const d=s.replace('T','');
+  return{date:`${d.substr(0,4)}-${d.substr(4,2)}-${d.substr(6,2)}`,time:`${d.substr(8,2)}:${d.substr(10,2)}`,allDay:false};
+}
+function expandEvent(ev){
+  const results=[], start=parseDT(ev.dtstart), end=parseDT(ev.dtend);
+  if(start.allDay)return results;
+  if(!ev.rrule){results.push({date:start.date,start:start.time,end:end.time,title:ev.summary});return results;}
+  const rr={};ev.rrule.split(';').forEach(p=>{const[k,v]=p.split('=');rr[k]=v;});
+  if(rr.FREQ!=='WEEKLY'){results.push({date:start.date,start:start.time,end:end.time,title:ev.summary});return results;}
+  const dayMap={SU:0,MO:1,TU:2,WE:3,TH:4,FR:5,SA:6};
+  const targetDays=(rr.BYDAY||'').split(',').map(d=>dayMap[d]).filter(d=>d!==undefined);
+  const exSet=new Set(); if(ev.exdates)ev.exdates.forEach(ex=>{exSet.add(parseDT(ex).date);});
+  const startDate=new Date(start.date+'T12:00:00');
+  let until=new Date(startDate);until.setMonth(until.getMonth()+6);
+  if(rr.UNTIL){const u=parseDT(rr.UNTIL);until=new Date(u.date+'T23:59:59');}
+  const maxCount=rr.COUNT?parseInt(rr.COUNT):999, interval=parseInt(rr.INTERVAL||'1');
+  let cursor=new Date(startDate),count=0;
+  while(cursor<=until&&count<maxCount){
+    const curDay=cursor.getDay();
+    for(const td of targetDays){
+      const d=new Date(cursor);d.setDate(d.getDate()+(td-curDay));
+      if(d<startDate||d>until||count>=maxCount)continue;
+      const ds=d.toISOString().split('T')[0];
+      if(exSet.has(ds))continue;
+      results.push({date:ds,start:start.time,end:end.time,title:ev.summary});count++;
+    }
+    cursor.setDate(cursor.getDate()+7*interval);
+  }
+  return results;
+}
+
+function handleFile(file){
+  if(!file)return;
+  const reader=new FileReader();
+  reader.onload=(e)=>{calEvents=parseICS(e.target.result);saveCalendar();updateStatus(true,new Date().toISOString());if(el('query-date').value)findAvailability();};
+  reader.readAsText(file);
+}
+const dz=el('drop-zone');
+dz.addEventListener('dragover',e=>{e.preventDefault();dz.classList.add('dragover');});
+dz.addEventListener('dragleave',()=>dz.classList.remove('dragover'));
+dz.addEventListener('drop',e=>{e.preventDefault();dz.classList.remove('dragover');const f=e.dataTransfer.files[0];if(f&&/\.ics$/i.test(f.name))handleFile(f);else alert('Please drop an .ics calendar file.');});
+
+function setMode(mode,btn){
+  queryMode=mode;
+  document.querySelectorAll('.range-toggle button').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active');
+  el('end-date-wrap').classList.toggle('hidden',mode!=='range');
+  el('date-label-start').textContent=mode==='range'?'Start Date':'Date';
+}
+function toggleHowTo(){el('howto-btn').classList.toggle('open');el('howto-content').classList.toggle('open');}
+
+function timeToMin(t){const[h,m]=t.split(':').map(Number);return h*60+m;}
+function minToTime(m){const h=Math.floor(m/60),min=m%60,ampm=h>=12?'pm':'am',h12=h===0?12:h>12?h-12:h;return`${h12}:${min.toString().padStart(2,'0')}${ampm}`;}
+
+function computeAvailability(events,dayStart,dayEnd,buffer,minSlot){
+  const sorted=events.map(e=>({start:timeToMin(e.start),end:timeToMin(e.end),title:e.title})).sort((a,b)=>a.start-b.start);
+  const merged=[];
+  for(const ev of sorted){
+    if(merged.length&&ev.start<=merged[merged.length-1].end+buffer){merged[merged.length-1].end=Math.max(merged[merged.length-1].end,ev.end);merged[merged.length-1].titles.push(ev.title);}
+    else merged.push({start:ev.start,end:ev.end,titles:[ev.title]});
+  }
+  const slots=[];let cursor=dayStart;
+  for(const block of merged){
+    const gs=cursor,ge=block.start-buffer;
+    if(ge-gs>=minSlot)slots.push({start:Math.max(gs,dayStart),end:Math.min(ge,dayEnd)});
+    cursor=Math.max(cursor,block.end+buffer);
+  }
+  if(dayEnd-cursor>=minSlot)slots.push({start:Math.max(cursor,dayStart),end:dayEnd});
+  return{slots,events:sorted};
+}
+
+function formatDayName(dateStr){
+  const d=new Date(dateStr+'T12:00:00');
+  return d.toLocaleDateString('en-US',{weekday:'long',month:'long',day:'numeric'});
+}
+
+function getSlotLines(slots,dayStart,dayEnd){
+  if(slots===null)return['- Free all day ('+minToTime(dayStart)+' \u2013 '+minToTime(dayEnd)+')'];
+  if(slots.length===0)return['  No availability within working hours.'];
+  const lines=[];
+  for(const s of slots){
+    if(s.start<=dayStart&&s.end>=dayEnd)lines.push('- Free all day ('+minToTime(dayStart)+' \u2013 '+minToTime(dayEnd)+')');
+    else if(s.start<=dayStart)lines.push('- Available anytime before '+minToTime(s.end));
+    else if(s.end>=dayEnd)lines.push('- Available anytime after '+minToTime(s.start));
+    else lines.push('- '+minToTime(s.start)+' \u2013 '+minToTime(s.end));
+  }
+  return lines;
+}
+
+function getSlotFingerprint(slots,dayStart,dayEnd){
+  return getSlotLines(slots,dayStart,dayEnd).join('\n');
+}
+
+function formatDay(dateStr,slots,events,dayStart,dayEnd){
+  const name=formatDayName(dateStr);
+  const slotsForLines=events.length===0?null:slots;
+  const slotLines=getSlotLines(slotsForLines,dayStart,dayEnd);
+  const fingerprint=slotLines.join('\n');
+  const header=events.length===0?`${name}:`:`Available on ${name}:`;
+  const text=header+'\n'+slotLines.join('\n');
+  const busy=events.length?'Busy with:\n'+events.map(e=>`  - ${e.title} (${minToTime(e.start)} \u2013 ${minToTime(e.end)})`).join('\n'):'';
+  return{text,busy,fingerprint,slotLines,dateStr,name,hasEvents:events.length>0};
+}
+
+function buildGroupedCopyText(dayResults){
+  if(dayResults.length<=1) return dayResults.map(r=>r.text).join('\n\n');
+  // Group consecutive or non-consecutive days with same fingerprint, preserving order of first appearance
+  const groups=[];
+  const seen={};
+  for(const r of dayResults){
+    if(seen[r.fingerprint]!==undefined){
+      groups[seen[r.fingerprint]].days.push(r);
+    } else {
+      seen[r.fingerprint]=groups.length;
+      groups.push({fingerprint:r.fingerprint,days:[r],slotLines:r.slotLines,hasEvents:r.hasEvents});
+    }
+  }
+  const parts=[];
+  for(const g of groups){
+    if(g.days.length===1){
+      parts.push(g.days[0].text);
+    } else {
+      const dayNames=g.days.map(d=>formatDayName(d.dateStr));
+      // Format: "Monday, April 6, Wednesday, April 8, and Friday, April 10:"
+      let header;
+      if(dayNames.length===2) header=dayNames[0]+' and '+dayNames[1]+':';
+      else header=dayNames.slice(0,-1).join(', ')+', and '+dayNames[dayNames.length-1]+':';
+      parts.push(header+'\n'+g.slotLines.join('\n'));
+    }
+  }
+  return parts.join('\n\n');
+}
+
+function findAvailability(){
+  if(!calEvents.length){alert('Please import a calendar file first.');return;}
+  const sd=el('query-date').value; if(!sd){alert('Please select a date.');return;}
+  const ed=queryMode==='range'?(el('query-date-end').value||sd):sd;
+  const dayStart=timeToMin(el('start-bound').value),dayEnd=timeToMin(el('end-bound').value);
+  const buffer=parseInt(el('buffer-minutes').value),minSlot=parseInt(el('min-slot').value);
+  const dates=[];let c=new Date(sd+'T12:00:00');const end=new Date(ed+'T12:00:00');
+  while(c<=end){dates.push(c.toISOString().split('T')[0]);c.setDate(c.getDate()+1);}
+
+  const dayResults=[];
+  let allHtml=[];
+  for(const ds of dates){
+    const dayEv=calEvents.filter(e=>e.date===ds);
+    const{slots,events}=computeAvailability(dayEv,dayStart,dayEnd,buffer,minSlot);
+    const result=formatDay(ds,slots,events,dayStart,dayEnd);
+    dayResults.push(result);
+
+    const mh=result.text.split('\n').map(l=>l.startsWith('-')?`<span class="avail-line">${esc(l)}</span>`:esc(l)).join('\n');
+    let bh='';
+    if(result.busy)bh='\n'+result.busy.split('\n').map(l=>l.startsWith('  -')||l==='Busy with:'?`<span class="busy-line">${esc(l)}</span>`:esc(l)).join('\n');
+    allHtml.push(mh+bh);
+  }
+
+  const rc=el('results-card');rc.style.display='block';
+  el('results-body').innerHTML=`<pre>${allHtml.join('\n\n')}</pre>`;
+  // Store grouped text for copy, ungrouped for display
+  rc.dataset.text=buildGroupedCopyText(dayResults);
+}
+
+function copyResults(){
+  const t=el('results-card').dataset.text;if(!t)return;
+  navigator.clipboard.writeText(t).then(()=>{const b=document.querySelector('.copy-btn');b.textContent='Copied!';b.classList.add('copied');setTimeout(()=>{b.textContent='Copy';b.classList.remove('copied');},1500);});
+}
+
+function esc(s){return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
+function el(id){return document.getElementById(id);}
+
+el('query-date').value=new Date().toISOString().split('T')[0];
+loadSettings();loadCalendar();
+
+// Register PWA service worker
+if('serviceWorker' in navigator){navigator.serviceWorker.register('sw.js').catch(()=>{});}
+</script>
+</body>
+</html>

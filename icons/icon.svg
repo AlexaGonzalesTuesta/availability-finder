@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <rect width="512" height="512" fill="#0078d4"/>
+  <rect x="80" y="120" width="352" height="312" rx="0" fill="#fff"/>
+  <rect x="80" y="120" width="352" height="72" fill="#005a9e"/>
+  <rect x="120" y="100" width="32" height="56" rx="0" fill="#fff"/>
+  <rect x="360" y="100" width="32" height="56" rx="0" fill="#fff"/>
+  <!-- Grid lines -->
+  <line x1="80" y1="252" x2="432" y2="252" stroke="#e1dfdd" stroke-width="2"/>
+  <line x1="80" y1="312" x2="432" y2="312" stroke="#e1dfdd" stroke-width="2"/>
+  <line x1="80" y1="372" x2="432" y2="372" stroke="#e1dfdd" stroke-width="2"/>
+  <line x1="197" y1="192" x2="197" y2="432" stroke="#e1dfdd" stroke-width="2"/>
+  <line x1="315" y1="192" x2="315" y2="432" stroke="#e1dfdd" stroke-width="2"/>
+  <!-- Green check mark for availability -->
+  <circle cx="256" cy="312" r="48" fill="#107c10"/>
+  <polyline points="232,312 250,330 280,294" fill="none" stroke="#fff" stroke-width="8" stroke-linecap="square" stroke-linejoin="miter"/>
+</svg>
