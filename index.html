@@ -194,12 +194,12 @@
     font-size: 17px; font-weight: 600; margin-bottom: 0;
   }
   .copy-btn {
-    background: var(--accent); border: 1px solid var(--accent);
-    color: #fff; font-family: inherit; font-size: 12px;
+    background: transparent; border: 1px solid var(--border-strong);
+    color: var(--text-muted); font-family: inherit; font-size: 12px;
     padding: 5px 12px; cursor: pointer; transition: all 0.1s;
   }
   .copy-btn:hover { border-color: var(--accent); color: var(--accent); }
-  .copy-btn.copied { background: var(--green); border-color: var(--green); color: #fff; }
+  .copy-btn.copied { border-color: var(--green); color: var(--green); }
 
   .results-body { padding: 20px; }
   .results-body pre {
@@ -211,6 +211,25 @@
   .busy-line { color: var(--text-muted); font-size: 12px; }
 
   .hidden { display: none !important; }
+
+  /* Timezone */
+  .tz-section { margin-bottom: 16px; }
+  .tz-section label { display: block; font-size: 12px; color: var(--text-muted); margin-bottom: 5px; }
+  .tz-row { display: flex; gap: 10px; align-items: end; flex-wrap: wrap; }
+  .tz-row > div { flex: 1; min-width: 140px; }
+  .tz-row select, .tz-row input { width: 100%; }
+  .tz-info {
+    font-size: 12px; color: var(--accent); margin-top: 8px;
+    padding: 6px 10px; background: var(--accent-light);
+    border: 1px solid var(--accent-border);
+  }
+  .tz-search {
+    background: var(--surface); border: 1px solid var(--border-strong);
+    padding: 7px 10px; color: var(--text);
+    font-family: 'Segoe UI', sans-serif; font-size: 13px;
+    outline: none; transition: border-color 0.1s; width: 100%;
+  }
+  .tz-search:focus { border-color: var(--accent); }
 </style>
 </head>
 <body>
@@ -277,6 +296,25 @@
       <button class="active" onclick="setMode('single',this)">Single Day</button>
       <button onclick="setMode('range',this)">Date Range</button>
     </div>
+
+    <div class="tz-section">
+      <div class="tz-row">
+        <div style="flex:2;">
+          <label>Display times in timezone</label>
+          <select id="tz-select" onchange="onTzChange()">
+            <option value="">My local time (no conversion)</option>
+          </select>
+        </div>
+        <div>
+          <label>Or find by country</label>
+          <select id="country-select" onchange="onCountryChange()">
+            <option value="">Select a country...</option>
+          </select>
+        </div>
+      </div>
+      <div class="tz-info hidden" id="tz-info"></div>
+    </div>
+
     <div class="date-inputs">
       <div>
         <label id="date-label-start">Date</label>
@@ -324,13 +362,13 @@ let calEvents = [];
 let queryMode = 'single';
 
 function saveSettings() {
-  const s = { startBound:el('start-bound').value, endBound:el('end-bound').value, buffer:el('buffer-minutes').value, minSlot:el('min-slot').value };
+  const s = { startBound:el('start-bound').value, endBound:el('end-bound').value, buffer:el('buffer-minutes').value, minSlot:el('min-slot').value, tz:selectedTz };
   try { localStorage.setItem('avail_settings', JSON.stringify(s)); } catch(e) {}
 }
 function loadSettings() {
   try {
     const s = JSON.parse(localStorage.getItem('avail_settings'));
-    if (s) { el('start-bound').value=s.startBound||'08:00'; el('end-bound').value=s.endBound||'21:00'; el('buffer-minutes').value=s.buffer||'10'; el('min-slot').value=s.minSlot||'30'; }
+    if (s) { el('start-bound').value=s.startBound||'08:00'; el('end-bound').value=s.endBound||'21:00'; el('buffer-minutes').value=s.buffer||'10'; el('min-slot').value=s.minSlot||'30'; if(s.tz){selectedTz=s.tz;} }
   } catch(e) {}
 }
 function saveCalendar() {
@@ -450,29 +488,31 @@ function formatDayName(dateStr){
   return d.toLocaleDateString('en-US',{weekday:'long',month:'long',day:'numeric'});
 }
 
-function getSlotLines(slots,dayStart,dayEnd){
-  if(slots===null)return['- Free all day ('+minToTime(dayStart)+' \u2013 '+minToTime(dayEnd)+')'];
+function getSlotLines(slots,dayStart,dayEnd,dateStr){
+  const ds = dateStr || '';
+  if(slots===null)return['- Free all day ('+minToTimeTz(dayStart,ds)+' \u2013 '+minToTimeTz(dayEnd,ds)+')'];
   if(slots.length===0)return['  No availability within working hours.'];
   const lines=[];
   for(const s of slots){
-    if(s.start<=dayStart&&s.end>=dayEnd)lines.push('- Free all day ('+minToTime(dayStart)+' \u2013 '+minToTime(dayEnd)+')');
-    else if(s.start<=dayStart)lines.push('- Available anytime before '+minToTime(s.end));
-    else if(s.end>=dayEnd)lines.push('- Available anytime after '+minToTime(s.start));
-    else lines.push('- '+minToTime(s.start)+' \u2013 '+minToTime(s.end));
+    if(s.start<=dayStart&&s.end>=dayEnd)lines.push('- Free all day ('+minToTimeTz(dayStart,ds)+' \u2013 '+minToTimeTz(dayEnd,ds)+')');
+    else if(s.start<=dayStart)lines.push('- Available anytime before '+minToTimeTz(s.end,ds));
+    else if(s.end>=dayEnd)lines.push('- Available anytime after '+minToTimeTz(s.start,ds));
+    else lines.push('- '+minToTimeTz(s.start,ds)+' \u2013 '+minToTimeTz(s.end,ds));
   }
   return lines;
 }
 
-function getSlotFingerprint(slots,dayStart,dayEnd){
-  return getSlotLines(slots,dayStart,dayEnd).join('\n');
+function getSlotFingerprint(slots,dayStart,dayEnd,dateStr){
+  return getSlotLines(slots,dayStart,dayEnd,dateStr).join('\n');
 }
 
 function formatDay(dateStr,slots,events,dayStart,dayEnd){
   const name=formatDayName(dateStr);
   const slotsForLines=events.length===0?null:slots;
-  const slotLines=getSlotLines(slotsForLines,dayStart,dayEnd);
+  const slotLines=getSlotLines(slotsForLines,dayStart,dayEnd,dateStr);
   const fingerprint=slotLines.join('\n');
-  const header=events.length===0?`${name}:`:`Available on ${name}:`;
+  const tzLabel = selectedTz ? ' ('+selectedTz.replace(/_/g,' ')+')' : '';
+  const header=events.length===0?`${name}${tzLabel}:`:`Available on ${name}${tzLabel}:`;
   const text=header+'\n'+slotLines.join('\n');
   const busy=events.length?'Busy with:\n'+events.map(e=>`  - ${e.title} (${minToTime(e.start)} \u2013 ${minToTime(e.end)})`).join('\n'):'';
   return{text,busy,fingerprint,slotLines,dateStr,name,hasEvents:events.length>0};
@@ -544,8 +584,178 @@ function copyResults(){
 function esc(s){return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
 function el(id){return document.getElementById(id);}
 
+// ── Timezone Data ──
+const COUNTRY_TZ = {
+  "Afghanistan":["Asia/Kabul"],"Albania":["Europe/Tirane"],"Algeria":["Africa/Algiers"],"Argentina":["America/Argentina/Buenos_Aires"],"Armenia":["Asia/Yerevan"],
+  "Australia":["Australia/Sydney","Australia/Melbourne","Australia/Brisbane","Australia/Perth","Australia/Adelaide","Australia/Darwin","Australia/Hobart"],
+  "Austria":["Europe/Vienna"],"Azerbaijan":["Asia/Baku"],"Bahrain":["Asia/Bahrain"],"Bangladesh":["Asia/Dhaka"],"Belarus":["Europe/Minsk"],
+  "Belgium":["Europe/Brussels"],"Bolivia":["America/La_Paz"],"Bosnia and Herzegovina":["Europe/Sarajevo"],"Brazil":["America/Sao_Paulo","America/Manaus","America/Recife"],
+  "Bulgaria":["Europe/Sofia"],"Cambodia":["Asia/Phnom_Penh"],"Cameroon":["Africa/Douala"],"Canada":["America/Toronto","America/Vancouver","America/Edmonton","America/Winnipeg","America/Halifax","America/St_Johns"],
+  "Chile":["America/Santiago"],"China":["Asia/Shanghai"],"Colombia":["America/Bogota"],"Costa Rica":["America/Costa_Rica"],"Croatia":["Europe/Zagreb"],
+  "Cuba":["America/Havana"],"Cyprus":["Asia/Nicosia"],"Czech Republic":["Europe/Prague"],"Denmark":["Europe/Copenhagen"],"Dominican Republic":["America/Santo_Domingo"],
+  "Ecuador":["America/Guayaquil"],"Egypt":["Africa/Cairo"],"El Salvador":["America/El_Salvador"],"Estonia":["Europe/Tallinn"],"Ethiopia":["Africa/Addis_Ababa"],
+  "Finland":["Europe/Helsinki"],"France":["Europe/Paris"],"Georgia":["Asia/Tbilisi"],"Germany":["Europe/Berlin"],"Ghana":["Africa/Accra"],
+  "Greece":["Europe/Athens"],"Guatemala":["America/Guatemala"],"Honduras":["America/Tegucigalpa"],"Hong Kong":["Asia/Hong_Kong"],"Hungary":["Europe/Budapest"],
+  "Iceland":["Atlantic/Reykjavik"],"India":["Asia/Kolkata"],"Indonesia":["Asia/Jakarta","Asia/Makassar","Asia/Jayapura"],"Iran":["Asia/Tehran"],"Iraq":["Asia/Baghdad"],
+  "Ireland":["Europe/Dublin"],"Israel":["Asia/Jerusalem"],"Italy":["Europe/Rome"],"Jamaica":["America/Jamaica"],"Japan":["Asia/Tokyo"],
+  "Jordan":["Asia/Amman"],"Kazakhstan":["Asia/Almaty","Asia/Aqtau"],"Kenya":["Africa/Nairobi"],"Kuwait":["Asia/Kuwait"],"Laos":["Asia/Vientiane"],
+  "Latvia":["Europe/Riga"],"Lebanon":["Asia/Beirut"],"Libya":["Africa/Tripoli"],"Lithuania":["Europe/Vilnius"],"Luxembourg":["Europe/Luxembourg"],
+  "Malaysia":["Asia/Kuala_Lumpur"],"Maldives":["Indian/Maldives"],"Malta":["Europe/Malta"],"Mexico":["America/Mexico_City","America/Cancun","America/Tijuana"],
+  "Moldova":["Europe/Chisinau"],"Mongolia":["Asia/Ulaanbaatar"],"Montenegro":["Europe/Podgorica"],"Morocco":["Africa/Casablanca"],"Myanmar":["Asia/Yangon"],
+  "Nepal":["Asia/Kathmandu"],"Netherlands":["Europe/Amsterdam"],"New Zealand":["Pacific/Auckland"],"Nicaragua":["America/Managua"],"Nigeria":["Africa/Lagos"],
+  "North Korea":["Asia/Pyongyang"],"North Macedonia":["Europe/Skopje"],"Norway":["Europe/Oslo"],"Oman":["Asia/Muscat"],"Pakistan":["Asia/Karachi"],
+  "Palestine":["Asia/Gaza"],"Panama":["America/Panama"],"Paraguay":["America/Asuncion"],"Peru":["America/Lima"],"Philippines":["Asia/Manila"],
+  "Poland":["Europe/Warsaw"],"Portugal":["Europe/Lisbon"],"Puerto Rico":["America/Puerto_Rico"],"Qatar":["Asia/Qatar"],"Romania":["Europe/Bucharest"],
+  "Russia":["Europe/Moscow","Asia/Vladivostok","Asia/Yekaterinburg","Asia/Novosibirsk","Asia/Kamchatka"],
+  "Saudi Arabia":["Asia/Riyadh"],"Senegal":["Africa/Dakar"],"Serbia":["Europe/Belgrade"],"Singapore":["Asia/Singapore"],"Slovakia":["Europe/Bratislava"],
+  "Slovenia":["Europe/Ljubljana"],"South Africa":["Africa/Johannesburg"],"South Korea":["Asia/Seoul"],"Spain":["Europe/Madrid"],"Sri Lanka":["Asia/Colombo"],
+  "Sudan":["Africa/Khartoum"],"Sweden":["Europe/Stockholm"],"Switzerland":["Europe/Zurich"],"Syria":["Asia/Damascus"],"Taiwan":["Asia/Taipei"],
+  "Tanzania":["Africa/Dar_es_Salaam"],"Thailand":["Asia/Bangkok"],"Trinidad and Tobago":["America/Port_of_Spain"],"Tunisia":["Africa/Tunis"],"Turkey":["Europe/Istanbul"],
+  "UAE":["Asia/Dubai"],"Uganda":["Africa/Kampala"],"Ukraine":["Europe/Kyiv"],"United Kingdom":["Europe/London"],
+  "United States":["America/New_York","America/Chicago","America/Denver","America/Los_Angeles","America/Anchorage","Pacific/Honolulu","America/Phoenix"],
+  "Uruguay":["America/Montevideo"],"Uzbekistan":["Asia/Tashkent"],"Venezuela":["America/Caracas"],"Vietnam":["Asia/Ho_Chi_Minh"],"Zimbabwe":["Africa/Harare"]
+};
+
+let selectedTz = '';
+
+function populateTzDropdowns(){
+  const tzSelect = el('tz-select');
+  const countrySelect = el('country-select');
+
+  // Get all IANA timezones supported by the browser
+  const allTz = Intl.supportedValuesOf ? Intl.supportedValuesOf('timeZone') : [];
+
+  // Group by region
+  const regions = {};
+  allTz.forEach(tz => {
+    const parts = tz.split('/');
+    const region = parts[0];
+    if (!regions[region]) regions[region] = [];
+    regions[region].push(tz);
+  });
+
+  // If browser doesn't support supportedValuesOf, use a flat list from COUNTRY_TZ
+  if (allTz.length === 0) {
+    const fallback = new Set();
+    Object.values(COUNTRY_TZ).forEach(arr => arr.forEach(tz => fallback.add(tz)));
+    [...fallback].sort().forEach(tz => {
+      const opt = document.createElement('option');
+      opt.value = tz;
+      opt.textContent = tz.replace(/_/g, ' ');
+      tzSelect.appendChild(opt);
+    });
+  } else {
+    ['Africa','America','Asia','Atlantic','Australia','Europe','Indian','Pacific'].forEach(region => {
+      if (!regions[region]) return;
+      const group = document.createElement('optgroup');
+      group.label = region;
+      regions[region].forEach(tz => {
+        const opt = document.createElement('option');
+        opt.value = tz;
+        const label = tz.replace(region + '/', '').replace(/_/g, ' ');
+        opt.textContent = label;
+        group.appendChild(opt);
+      });
+      tzSelect.appendChild(group);
+    });
+  }
+
+  // Populate countries
+  Object.keys(COUNTRY_TZ).sort().forEach(country => {
+    const opt = document.createElement('option');
+    opt.value = country;
+    opt.textContent = country;
+    countrySelect.appendChild(opt);
+  });
+}
+
+function onTzChange(){
+  selectedTz = el('tz-select').value;
+  el('country-select').value = '';
+  updateTzInfo();
+  saveSettings();
+}
+
+function onCountryChange(){
+  const country = el('country-select').value;
+  if (!country) return;
+  const zones = COUNTRY_TZ[country];
+  if (zones.length === 1) {
+    el('tz-select').value = zones[0];
+    selectedTz = zones[0];
+    updateTzInfo();
+    saveSettings();
+  } else {
+    // Show first one but let them know there are options
+    el('tz-select').value = zones[0];
+    selectedTz = zones[0];
+    updateTzInfo();
+    saveSettings();
+  }
+}
+
+function updateTzInfo(){
+  const info = el('tz-info');
+  if (!selectedTz) {
+    info.classList.add('hidden');
+    return;
+  }
+  const localTz = Intl.DateTimeFormat().resolvedOptions().timeZone;
+  const now = new Date();
+  const localOffset = getUtcOffsetMinutes(now, localTz);
+  const targetOffset = getUtcOffsetMinutes(now, selectedTz);
+  const diff = targetOffset - localOffset;
+  const sign = diff >= 0 ? '+' : '-';
+  const absDiff = Math.abs(diff);
+  const hrs = Math.floor(absDiff / 60);
+  const mins = absDiff % 60;
+  const diffStr = mins ? `${sign}${hrs}h ${mins}m` : `${sign}${hrs}h`;
+  const targetLabel = selectedTz.replace(/_/g, ' ');
+  info.innerHTML = `Converting to <strong>${targetLabel}</strong> (${diffStr} from your local time)`;
+  info.classList.remove('hidden');
+}
+
+function getUtcOffsetMinutes(date, tz){
+  const utcStr = date.toLocaleString('en-US', { timeZone: 'UTC' });
+  const tzStr = date.toLocaleString('en-US', { timeZone: tz });
+  const utcDate = new Date(utcStr);
+  const tzDate = new Date(tzStr);
+  return (tzDate - utcDate) / 60000;
+}
+
+function convertMinToTz(minutes, dateStr){
+  if (!selectedTz) return minutes;
+  const localTz = Intl.DateTimeFormat().resolvedOptions().timeZone;
+  // Create a date object for the given date and time in local tz
+  const h = Math.floor(minutes / 60);
+  const m = minutes % 60;
+  // Use a reference date to compute offset difference
+  const refDate = new Date(dateStr + 'T' + String(h).padStart(2,'0') + ':' + String(m).padStart(2,'0') + ':00');
+  const localOffset = getUtcOffsetMinutes(refDate, localTz);
+  const targetOffset = getUtcOffsetMinutes(refDate, selectedTz);
+  const diff = targetOffset - localOffset;
+  return minutes + diff;
+}
+
+populateTzDropdowns();
+
+// Override minToTime to support timezone conversion in output
+const _origMinToTime = minToTime;
+
+function minToTimeTz(m, dateStr){
+  const converted = selectedTz ? convertMinToTz(m, dateStr) : m;
+  // Handle day overflow
+  let adj = converted;
+  if (adj < 0) adj += 1440;
+  if (adj >= 1440) adj -= 1440;
+  return _origMinToTime(adj);
+}
+
 el('query-date').value=new Date().toISOString().split('T')[0];
-loadSettings();loadCalendar();
+loadSettings();
+// Restore tz dropdown after settings load
+if(selectedTz){ el('tz-select').value=selectedTz; updateTzInfo(); }
+loadCalendar();
 
 // Register PWA service worker
 if('serviceWorker' in navigator){navigator.serviceWorker.register('sw.js').catch(()=>{});}
