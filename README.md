@@ -19,7 +19,7 @@ A lightweight tool that reads your Outlook calendar (.ics export) and generates 
 
 ### Option 1: Use online (GitHub Pages)
 
-1. Visit **[your-username.github.io/availability-finder](https://your-username.github.io/availability-finder)**
+1. Visit **[AlexaGonzalesTuesta.github.io/availability-finder](https://AlexaGonzalesTuesta.github.io/availability-finder)**
 2. Export your calendar as an .ics file ([how-to guide below](#exporting-from-outlook))
 3. Drag the .ics file into the app
 4. Pick a date and click **Find Free Times**
