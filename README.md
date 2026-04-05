@@ -27,30 +27,64 @@ https://github.com/user-attachments/assets/1d9f3115-c702-4dcb-87b6-0828a8e4f0c2
 - **Settings persist** between sessions automatically
 
 ## How to Use
-
+ 
 ### Step 1: Export your calendar
-
+ 
+Pick whichever calendar app you use:
+ 
+<details>
+<summary><strong>Outlook</strong></summary>
+ 
 1. Open [Outlook Web → Shared Calendars Settings](https://outlook.live.com/calendar/0/options/calendar/SharedCalendars)
 2. Under **"Publish a calendar"**, select your calendar → set to **"Can view all details"**
 3. Click **Publish**
 4. Right-click the **ICS** link → **Save link as...** to download the .ics file
-
-> **Tip:** Bookmark the ICS download link. Next time you just click it to download a fresh copy — takes 5 seconds.
-
+ 
+> **Tip:** Bookmark the ICS link. Next time you just click it to download a fresh copy — takes 5 seconds.
+</details>
+ 
+<details>
+<summary><strong>Google Calendar</strong></summary>
+ 
+1. Open [Google Calendar → Settings → Import & Export](https://calendar.google.com/calendar/r/settings/export)
+2. Under **"Export"**, click the **Export** button
+3. A .zip file will download — unzip it to find your **.ics file(s)** inside
+4. Drag the .ics file into the app
+ 
+> **Note:** Google exports all your calendars at once. Each calendar is a separate .ics file inside the zip — pick the one you want.
+</details>
+ 
+<details>
+<summary><strong>Apple Calendar</strong></summary>
+ 
+**On Mac (Calendar app):**
+1. Open the **Calendar** app
+2. In the left sidebar, right-click the calendar you want to export
+3. Select **"Export..."**
+4. Save the .ics file to your computer
+ 
+**On iCloud (web):**
+1. Go to [icloud.com/calendar](https://www.icloud.com/calendar)
+2. Click the **share icon** next to the calendar name in the sidebar
+3. Check **"Public Calendar"** and copy the link
+4. Paste the link in your browser, changing **webcal://** to **https://**
+5. The .ics file will download
+</details>
+ 
 ### Step 2: Import into the app
-
+ 
 1. Open the [Availability Finder](https://alexagonzalestuesta.github.io/availability-finder)
 2. Drag your .ics file into the drop zone (or click to browse)
 3. Set your working hours (e.g. 8:00am – 9:00pm)
 4. Pick a date or date range and click **Find Free Times**
 5. Click **Copy** to grab your availability and paste it into a message
-
+ 
 ### Install as an app (optional)
-
+ 
 - **Chrome (desktop):** Click the install icon in the address bar to pin it as a standalone app
 - **Safari (iOS):** Tap Share → Add to Home Screen
 - **Android:** Tap the "Add to Home Screen" prompt
-
+  
 ## How the Copy Grouping Works
 
 When you query a date range, the copy button intelligently groups days with identical availability.
