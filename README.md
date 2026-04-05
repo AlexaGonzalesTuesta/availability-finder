@@ -10,7 +10,7 @@ No account, no install, no setup. Just open the link and import your calendar.
 
 Quick Demo Video:
 
-https://github.com/user-attachments/assets/1d9f3115-c702-4dcb-87b6-0828a8e4f0c2
+https://github.com/user-attachments/assets/e315b90e-6a74-463a-b8f5-9ab88b0d067b
 
 ## Features
 
