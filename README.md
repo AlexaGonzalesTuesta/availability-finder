@@ -8,6 +8,10 @@ A lightweight tool that reads your calendar (.ics export) and generates a clean 
 
 No account, no install, no setup. Just open the link and import your calendar.
 
+Quick Demo Video:
+
+https://github.com/user-attachments/assets/1d9f3115-c702-4dcb-87b6-0828a8e4f0c2
+
 ## Features
 
 - **Import .ics files** from Outlook, Google Calendar, or Apple Calendar via drag-and-drop
