@@ -604,27 +604,156 @@ function findAvailability(){
   const ed=queryMode==='range'?(el('query-date-end').value||sd):sd;
   const dayStart=timeToMin(el('start-bound').value),dayEnd=timeToMin(el('end-bound').value);
   const buffer=parseInt(el('buffer-minutes').value),minSlot=parseInt(el('min-slot').value);
-  const dates=[];let c=new Date(sd+'T12:00:00');const end=new Date(ed+'T12:00:00');
+
+  // If no timezone conversion, use original simple logic
+  if(!selectedTz){
+    const dates=[];let c=new Date(sd+'T12:00:00');const end=new Date(ed+'T12:00:00');
+    while(c<=end){dates.push(c.toISOString().split('T')[0]);c.setDate(c.getDate()+1);}
+    const dayResults=[];
+    let allHtml=[];
+    for(const ds of dates){
+      const dayEv=calEvents.filter(e=>e.date===ds);
+      const{slots,events}=computeAvailability(dayEv,dayStart,dayEnd,buffer,minSlot);
+      const result=formatDay(ds,slots,events,dayStart,dayEnd);
+      dayResults.push(result);
+      const mh=result.text.split('\n').map(l=>l.startsWith('-')?`<span class="avail-line">${esc(l)}</span>`:esc(l)).join('\n');
+      let bh='';
+      if(result.busy)bh='\n'+result.busy.split('\n').map(l=>l.startsWith('  -')||l==='Busy with:'?`<span class="busy-line">${esc(l)}</span>`:esc(l)).join('\n');
+      allHtml.push(mh+bh);
+    }
+    const rc=el('results-card');rc.style.display='block';
+    el('results-body').innerHTML=`<pre>${allHtml.join('\n\n')}</pre>`;
+    rc.dataset.text=buildGroupedCopyText(dayResults);
+    return;
+  }
+
+  // ── Timezone-aware logic ──
+  // We need extra days before/after to catch slots that cross midnight
+  const dates=[];
+  let c=new Date(sd+'T12:00:00');
+  c.setDate(c.getDate()-2); // two days before for large offsets
+  const end=new Date(ed+'T12:00:00');
+  end.setDate(end.getDate()+2); // two days after
   while(c<=end){dates.push(c.toISOString().split('T')[0]);c.setDate(c.getDate()+1);}
+
+  // Compute availability slots in local time for each source day
+  // Working hours are applied here in LOCAL time (correct behavior)
+  const localSlotsByDay={};
+  for(const ds of dates){
+    const dayEv=calEvents.filter(e=>e.date===ds);
+    const{slots}=computeAvailability(dayEv,dayStart,dayEnd,buffer,minSlot);
+    localSlotsByDay[ds]=slots;
+  }
+
+  // Convert each slot to target timezone and collect into target-tz calendar days
+  const tzSlotsByTargetDay={};
+
+  for(const ds of dates){
+    const slots=localSlotsByDay[ds];
+    if(!slots)continue;
+    for(const slot of slots){
+      const tzStart=convertMinToTz(slot.start, ds);
+      const tzEnd=convertMinToTz(slot.end, ds);
+      const segments=splitSlotAcrossDays(ds, tzStart, tzEnd);
+      for(const seg of segments){
+        if(!tzSlotsByTargetDay[seg.date])tzSlotsByTargetDay[seg.date]=[];
+        tzSlotsByTargetDay[seg.date].push({start:seg.start, end:seg.end});
+      }
+    }
+  }
+
+  // Target dates the user asked for
+  const targetDates=[];
+  let tc=new Date(sd+'T12:00:00');const te=new Date(ed+'T12:00:00');
+  while(tc<=te){targetDates.push(tc.toISOString().split('T')[0]);tc.setDate(tc.getDate()+1);}
 
   const dayResults=[];
   let allHtml=[];
-  for(const ds of dates){
-    const dayEv=calEvents.filter(e=>e.date===ds);
-    const{slots,events}=computeAvailability(dayEv,dayStart,dayEnd,buffer,minSlot);
-    const result=formatDay(ds,slots,events,dayStart,dayEnd);
+  const abbr=getTzAbbr(selectedTz);
+  const tzLabel=abbr?' ('+abbr+')':' ('+selectedTz.replace(/_/g,' ')+')';
+
+  for(const ds of targetDates){
+    const rawSlots=tzSlotsByTargetDay[ds]||[];
+    // Merge overlapping/adjacent slots
+    const sorted=[...rawSlots].sort((a,b)=>a.start-b.start);
+    const merged=[];
+    for(const s of sorted){
+      if(merged.length&&s.start<=merged[merged.length-1].end+buffer){
+        merged[merged.length-1].end=Math.max(merged[merged.length-1].end, s.end);
+      } else {
+        merged.push({start:s.start, end:s.end});
+      }
+    }
+
+    const name=formatDayName(ds);
+
+    // Format lines — no extra clipping needed, working hours already applied in local time
+    let slotLines=[];
+    if(merged.length===0){
+      // Check if we had any source events at all for nearby days
+      // If no slots landed on this target day, it means no free time
+      slotLines=['  No availability on this day.'];
+    } else {
+      for(const s of merged){
+        // Clip to 0–1440 just in case
+        const cs=Math.max(s.start,0);
+        const ce=Math.min(s.end,1440);
+        if(ce<=cs)continue;
+        if(cs<=0&&ce>=1440)slotLines.push('- Free all day');
+        else if(cs<=0)slotLines.push('- Available anytime before '+_origMinToTime(ce));
+        else if(ce>=1440)slotLines.push('- Available anytime after '+_origMinToTime(cs));
+        else slotLines.push('- '+_origMinToTime(cs)+' \u2013 '+_origMinToTime(ce));
+      }
+      if(slotLines.length===0)slotLines=['  No availability on this day.'];
+    }
+
+    const fingerprint=slotLines.join('\n');
+    const hasAvail=!slotLines[0].startsWith('  No');
+    const header=hasAvail?`Available on ${name}${tzLabel}:`:`${name}${tzLabel}:`;
+    const text=header+'\n'+slotLines.join('\n');
+
+    // Show busy in local time for reference
+    const localDayEv=calEvents.filter(e=>e.date===ds);
+    const busyEvents=localDayEv.map(e=>({start:timeToMin(e.start),end:timeToMin(e.end),title:e.title})).sort((a,b)=>a.start-b.start);
+    const busy=busyEvents.length?'Busy with (your local time):\n'+busyEvents.map(e=>`  - ${e.title} (${minToTime(e.start)} \u2013 ${minToTime(e.end)})`).join('\n'):'';
+
+    const result={text,busy,fingerprint,slotLines,dateStr:ds,name,hasEvents:merged.length>0};
     dayResults.push(result);
 
-    const mh=result.text.split('\n').map(l=>l.startsWith('-')?`<span class="avail-line">${esc(l)}</span>`:esc(l)).join('\n');
+    const mh=text.split('\n').map(l=>l.startsWith('-')?`<span class="avail-line">${esc(l)}</span>`:esc(l)).join('\n');
     let bh='';
-    if(result.busy)bh='\n'+result.busy.split('\n').map(l=>l.startsWith('  -')||l==='Busy with:'?`<span class="busy-line">${esc(l)}</span>`:esc(l)).join('\n');
+    if(busy)bh='\n'+busy.split('\n').map(l=>l.startsWith('  -')||l.startsWith('Busy')?`<span class="busy-line">${esc(l)}</span>`:esc(l)).join('\n');
     allHtml.push(mh+bh);
   }
 
   const rc=el('results-card');rc.style.display='block';
   el('results-body').innerHTML=`<pre>${allHtml.join('\n\n')}</pre>`;
-  // Store grouped text for copy, ungrouped for display
   rc.dataset.text=buildGroupedCopyText(dayResults);
+}
+
+// Split a slot that may cross midnight into segments per calendar day
+function splitSlotAcrossDays(originDate, tzStartMin, tzEndMin){
+  const segments=[];
+  const origin=new Date(originDate+'T12:00:00');
+
+  let currentDayOffset=Math.floor(tzStartMin/1440);
+  let remaining={start:tzStartMin, end:tzEndMin};
+
+  // Safety: max 3 days span
+  for(let i=0;i<3&&remaining.start<remaining.end;i++){
+    const dayFloor=currentDayOffset*1440;
+    const dayCeil=(currentDayOffset+1)*1440;
+    const segStart=Math.max(remaining.start, dayFloor);
+    const segEnd=Math.min(remaining.end, dayCeil);
+    if(segEnd>segStart){
+      const targetDate=new Date(origin);
+      targetDate.setDate(targetDate.getDate()+currentDayOffset);
+      const ds=targetDate.toISOString().split('T')[0];
+      segments.push({date:ds, start:segStart-dayFloor, end:segEnd-dayFloor});
+    }
+    currentDayOffset++;
+  }
+  return segments;
 }
 
 function copyResults(){
