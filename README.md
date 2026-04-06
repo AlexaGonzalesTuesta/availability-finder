@@ -110,7 +110,7 @@ Want to host your own version? Fork this repo, then:
 1. Go to **Settings → Pages** in your forked repo
 2. Under Source, select **Deploy from a branch → main → / (root)**
 3. Click **Save**
-4. Your copy will be live at `your-username.github.io/availability-finder` within a minute
+4. Your copy will be live at `alexagonzalestuesta.github.io/availability-finder` within a minute
 
 Or run it locally:
 
